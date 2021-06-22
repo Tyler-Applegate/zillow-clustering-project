@@ -139,19 +139,32 @@ def impute_zillow(df, my_strategy, column_list):
     return df
 
 
+def create_features(df):
+    '''
+    This function is specific to my zillow clustering project. It creates new feature columns to use in clustering exploration
+    and modeling.
+    '''
+    # create age column that uses yearbuilt to show how old the property is
+    df['age'] = 2017 - df.yearbuilt
+    # create taxrate variable
+    df['taxrate'] = df.taxamount/df.taxvaluedollarcnt*100
+    # create acres variable
+    df['acres'] = df.lotsizesquarefeet/43560
+    # ratio of bathrooms to bedrooms
+    df['bath_bed_ratio'] = df.bathroomcnt/df.bedroomcnt
+    
+    return df
+    
 def prep_zillow_cluster(df):
     
     # drop propertylandusetypeid != 261 (single family residential)
     df = df[df['propertylandusetypeid'] == 261]
     
+    # Create column with county names
+    df = get_counties(df)
+    
     # drop duplicate parcelid keeping the latest one by transaction date
     df = df.sort_values('transactiondate').drop_duplicates('parcelid',keep='last')
-    
-    # remove rows based on propertylanduse
-    df = df[(df.propertylandusedesc == 'Single Family Residential') |
-          (df.propertylandusedesc == 'Mobile Home') |
-          (df.propertylandusedesc == 'Manufactured, Modular, Prefabricated Homes') |
-          (df.propertylandusedesc == 'Townhouse')]
     
     # Drop outliers 1.5* IQR
     df = drop_outliers(df, ['calculatedfinishedsquarefeet', 'bedroomcnt', 'bathroomcnt'])
@@ -159,19 +172,18 @@ def prep_zillow_cluster(df):
     # Drop columns and rows with more than 50% null values
     df = handle_missing_values(df)
     
-    # dropping the columns with 17K missing values too much to fill/impute/drop rows
-    df = df.drop(columns=['heatingorsystemtypeid', 'buildingqualitytypeid', 'propertyzoningdesc', 'unitcnt', 'heatingorsystemdesc'])
+    # feature creation
+    df = create_features(df)
     
-    # Create column with county names
-    df = get_counties(df)
+    # dropping the columns with 17K missing values too much to fill/impute/drop rows
+    df = df.drop(columns=['propertylandusetypeid', 'id', 'heatingorsystemtypeid', 'buildingqualitytypeid', 'propertyzoningdesc', 'unitcnt', 'heatingorsystemdesc'])
     
     # Split it
     train, validate, test, X_train, y_train, X_validate, y_validate, X_test, y_test = train_validate_test(df, 'logerror')
     
+    X_train = impute_zillow(X_train, 'most_frequent', ['calculatedbathnbr', 'fullbathcnt', 'regionidzip', 'regionidcity', 'yearbuilt', 'censustractandblock'])
     
-    X_train = impute_zillow(X_train, 'most_frequent', ['calculatedbathnbr', 'fullbathcnt', 'regionidcity', 'regionidzip', 'yearbuilt', 'censustractandblock'])
-    
-    X_train = impute_zillow(X_train, 'median', ['finishedsquarefeet12', 'lotsizesquarefeet', 'structuretaxvaluedollarcnt', 'taxvaluedollarcnt', 'landtaxvaluedollarcnt', 'taxamount'])
+    X_train = impute_zillow(X_train, 'median', ['finishedsquarefeet12', 'lotsizesquarefeet', 'structuretaxvaluedollarcnt', 'taxvaluedollarcnt', 'landtaxvaluedollarcnt', 'taxamount', 'age', 'acres', 'taxrate'])
     
     return df, train, validate, test, X_train, y_train, X_validate, y_validate, X_test, y_test
     
