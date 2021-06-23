@@ -27,23 +27,24 @@ def new_zillow_cluster():
     performs a SQL query and returns a pandas DataFrame.
     '''
     sql_query = '''
-                SELECT *
+                SELECT * 
                 FROM properties_2017 AS prop
-                LEFT JOIN (SELECT DISTINCT parcelid, logerror, max(transactiondate) AS transactiondate
-                FROM predictions_2017 
-                        GROUP BY parcelid, logerror) AS pred
-                        USING (parcelid)
-                LEFT JOIN propertylandusetype AS land USING (propertylandusetypeid)
-                LEFT JOIN storytype AS story USING (storytypeid)
-                LEFT JOIN typeconstructiontype AS construct USING (typeconstructiontypeid)
-                LEFT JOIN unique_properties AS special USING (parcelid)
-                LEFT JOIN airconditioningtype AS air USING (airconditioningtypeid)
-                LEFT JOIN architecturalstyletype AS architect USING (architecturalstyletypeid)
-                LEFT JOIN buildingclasstype  AS class USING (buildingclasstypeid)
-                LEFT JOIN heatingorsystemtype AS heat USING (heatingorsystemtypeid)
+                LEFT JOIN (
+                    SELECT DISTINCT parcelid, logerror, max(transactiondate) 
+                    AS transactiondate
+                    FROM predictions_2017
+                    GROUP BY parcelid, logerror) AS pred USING (parcelid)
+                LEFT JOIN airconditioningtype USING (airconditioningtypeid)
+                LEFT JOIN architecturalstyletype USING (architecturalstyletypeid)
+                LEFT JOIN buildingclasstype USING (buildingclasstypeid)
+                LEFT JOIN heatingorsystemtype USING (heatingorsystemtypeid)
+                LEFT JOIN propertylandusetype USING (propertylandusetypeid)
+                LEFT JOIN storytype USING (storytypeid)
+                LEFT JOIN typeconstructiontype USING (typeconstructiontypeid)
                 WHERE transactiondate LIKE '2017%'
-                AND latitude IS NOT null
-                AND longitude IS NOT null
+                AND propertylandusetypeid = 261
+                AND latitude IS NOT NULL
+                AND longitude IS NOT NULL
                 '''
     return pd.read_sql(sql_query, get_connection('zillow'))
 

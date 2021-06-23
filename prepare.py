@@ -11,43 +11,19 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.impute import SimpleImputer
 
-def get_counties(df):
-    '''
-    This function will create dummy variables out of the original fips column. 
-    And return a dataframe with all of the original columns except regionidcounty.
-    We will keep fips column for data validation after making changes. 
-    New columns added will be 'LA', 'Orange', and 'Ventura' which are boolean 
-    The fips ids are renamed to be the name of the county each represents. 
-    '''
-    # create dummy vars of fips id
-    county_df = pd.get_dummies(df.fips)
-    # rename columns by actual county name
-    county_df.columns = ['LA', 'Orange', 'Ventura']
-    # concatenate the dataframe with the 3 county columns to the original dataframe
-    df = pd.concat([df, county_df], axis = 1)
-    # drop regionidcounty and fips columns
-    df = df.drop(columns = ['regionidcounty'])
-    return df
+################# Starting to prepare #######################
 
-def drop_outliers(df, col_list, k=1.5):
+def new_index(df):
     '''
-    This function takes in a dataframe and removes outliers that are k * the IQR
+    This function takes in the newly acquired zillow dataframe,
+    renames the parcelid column as parcel_id,
+    and sets this variable as the index.
     '''
     
-    for col in col_list:
-
-        q_25, q_75 = df[col].quantile([0.25, 0.75])
-        q_iqr = q_75 - q_25
-        q_upper = q_75 + (k * q_iqr)
-        q_lower = q_25 - (k * q_iqr)
-        df = df[df[col] > q_lower]
-        df = df[df[col] < q_upper]
-#       these bottome two lines are only necessary if previous functions have been callled
-#       if this function is run BEFORE add_upper/lower, then these columns need to be commented out
-#         outlier_cols = [col for col in df.columns if col.endswith('_outliers')]
-#         df = df.drop(columns=outlier_cols)
-        
-    return df 
+    df = df.rename(columns={'parcelid': 'parcel_id'})
+    df = df.set_index('parcel_id')
+    
+    return df
 
 def nulls_by_col(df):
     '''
@@ -90,6 +66,89 @@ def handle_missing_values(df, prop_required_column = .5, prop_required_row = .75
     row_thresh = int(round(prop_required_row*df.shape[1],0))  # calc row threshhold
     
     df.dropna(axis=0, thresh=row_thresh, inplace=True) # drop columns with non-nulls less than threshold
+    
+    return df
+
+def get_counties(df):
+    '''
+    This function will create dummy variables out of the original fips column. 
+    And return a dataframe with all of the original columns except regionidcounty.
+    We will keep fips column for data validation after making changes. 
+    New columns added will be 'LA', 'Orange', and 'Ventura' which are boolean 
+    The fips ids are renamed to be the name of the county each represents. 
+    '''
+    # create dummy vars of fips id
+    county_df = pd.get_dummies(df.fips)
+    # rename columns by actual county name
+    county_df.columns = ['LA', 'Orange', 'Ventura']
+    # concatenate the dataframe with the 3 county columns to the original dataframe
+    df = pd.concat([df, county_df], axis = 1)
+    # drop regionidcounty and fips columns
+    df = df.drop(columns = ['regionidcounty'])
+    return df
+
+def create_features(df):
+    '''
+    This function is specific to my zillow clustering project. 
+    It creates new feature columns to use in clustering exploration
+    and modeling.
+    '''
+    # create age column that uses yearbuilt to show how old the property is
+    df['age'] = 2017 - df.yearbuilt
+    # create taxrate variable
+    df['taxrate'] = df.taxamount/df.taxvaluedollarcnt*100
+    # create acres variable
+    df['acres'] = df.lotsizesquarefeet/43560
+    # ratio of bathrooms to bedrooms
+    df['bath_bed_ratio'] = df.bathroomcnt/df.bedroomcnt
+    
+    return df
+
+def discrete_vars(df):
+    # get value counts for discrete variables
+
+    disc_cols = [col for col in df.columns if (df[col].dtype == "object")]
+
+    for col in disc_cols:
+    
+        print(col)
+        print(df[col].value_counts())
+        print()
+
+def plot_univariate(df):
+    # distribution of the data
+    con_cols = [col for col in df.columns if (df[col].dtype == 'int64') | (df[col].dtype == 'float64')]
+
+    for col in con_cols:
+        plt.hist(df[col])
+        plt.title(f"{col} distribution")
+        plt.show()
+
+def drop_outliers(df, col_list, k=1.5):
+    '''
+    This function takes in a dataframe and removes outliers that are k * the IQR
+    '''
+    
+    for col in col_list:
+
+        q_25, q_75 = df[col].quantile([0.25, 0.75])
+        q_iqr = q_75 - q_25
+        q_upper = q_75 + (k * q_iqr)
+        q_lower = q_25 - (k * q_iqr)
+        df = df[df[col] > q_lower]
+        df = df[df[col] < q_upper]
+        
+    return df 
+
+def drop_columns(df):
+    '''
+    This function takes in a pandas DataFrame, and a list of columns to drop,
+    and returns a DataFrame after dropping the columns
+    '''
+    # This list needs to be updated for each DataFrame
+    col_list = ['propertylandusetypeid', 'heatingorsystemtypeid', 'buildingqualitytypeid', 'propertyzoningdesc', 'unitcnt', 'heatingorsystemdesc', 'id', 'finishedsquarefeet12', 'assessmentyear', 'fips']
+    
+    df = df.drop(columns=col_list)
     
     return df
 
@@ -139,21 +198,7 @@ def impute_zillow(df, my_strategy, column_list):
     return df
 
 
-def create_features(df):
-    '''
-    This function is specific to my zillow clustering project. It creates new feature columns to use in clustering exploration
-    and modeling.
-    '''
-    # create age column that uses yearbuilt to show how old the property is
-    df['age'] = 2017 - df.yearbuilt
-    # create taxrate variable
-    df['taxrate'] = df.taxamount/df.taxvaluedollarcnt*100
-    # create acres variable
-    df['acres'] = df.lotsizesquarefeet/43560
-    # ratio of bathrooms to bedrooms
-    df['bath_bed_ratio'] = df.bathroomcnt/df.bedroomcnt
-    
-    return df
+
     
 def prep_zillow_cluster(df):
     
@@ -214,10 +259,14 @@ def summarize(df):
     for col in df.columns:
         if col in cat_cols:
             print(df[col].value_counts())
+            print('----------------------------------------------------')
+            print('')
         else:
             print(df[col].value_counts(bins=10, sort=False))
+            print('----------------------------------------------------')
+            print('')
     print('----------------------------------------------------')
-    print('Nulls in DataFrae by Column: ')
+    print('Nulls in DataFrame by Column: ')
     print(nulls_by_col(df))
     print('----------------------------------------------------')
     print('Nulls in DataFrame by Rows: ')
