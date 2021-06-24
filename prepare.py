@@ -146,7 +146,7 @@ def drop_columns(df):
     and returns a DataFrame after dropping the columns
     '''
     # This list needs to be updated for each DataFrame
-    col_list = ['propertylandusetypeid', 'id', 'finishedsquarefeet12', 'propertycountylandusecode', 'propertyzoningdesc', 'transactiondate', 'heatingorsystemdesc', 'propertylandusedesc', 'heatingorsystemtypeid', 'buildingqualitytypeid', 'unitcnt', 'censustractandblock']
+    col_list = ['propertylandusetypeid', 'id', 'finishedsquarefeet12', 'propertycountylandusecode', 'propertyzoningdesc', 'transactiondate', 'heatingorsystemdesc', 'propertylandusedesc', 'heatingorsystemtypeid', 'buildingqualitytypeid', 'unitcnt', 'censustractandblock', 'regionidcity', 'regionidzip']
     
     df = df.drop(columns=col_list)
     
