@@ -99,10 +99,6 @@ def create_features(df):
     df['taxrate'] = df.taxamount/df.taxvaluedollarcnt*100
     # create acres variable
     df['acres'] = df.lotsizesquarefeet/43560
-    # ratio of bathrooms to bedrooms
-    df['bath_bed_ratio'] = df.bathroomcnt/df.bedroomcnt
-    # new column with absolute value of logerror
-    df['abs_logerror'] = df['logerror'].abs()
     
     return df
 
@@ -143,7 +139,11 @@ def drop_outliers(df, col_list, k=1.5):
     '''
     This function takes in a dataframe and removes outliers that are k * the IQR
     '''
-    
+#     col_list = ['bathroomcnt', 'bedroomcnt', 'calculatedbathnbr',
+#        'calculatedfinishedsquarefeet', 'fips', 'fullbathcnt', 'latitude',
+#        'longitude', 'lotsizesquarefeet', 'roomcnt', 'taxamount', 'logerror',
+#        'LA', 'Orange', 'Ventura', 'age', 'taxrate', 'acres', 'bath_bed_ratio',
+#        'abs_logerror']
     for col in col_list:
 
         q_25, q_75 = df[col].quantile([0.25, 0.75])
@@ -173,6 +173,7 @@ def zillow_prep(df):
     '''
     This functions combines multiple functions to prepare my zillow data to be split.
     '''
+
     # Runs my new index functions to rest the index to parcel_id
     df = new_index(df)
     
@@ -185,11 +186,11 @@ def zillow_prep(df):
     # This fuiction is used to create specific features like age, acres, etc. to help with exploration and modeling
     df = create_features(df)
     
-    # bin creation
-#     df = create_bins(df)
-    
     # This function drops unneccessary columns
     df = drop_columns(df)
+    
+    # Drop all remaining missing values
+    df = df.dropna()
     
     # returns a cleaned and prepped df ready to be split/imputed
     return df
