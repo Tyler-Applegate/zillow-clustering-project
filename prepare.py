@@ -101,6 +101,21 @@ def create_features(df):
     df['acres'] = df.lotsizesquarefeet/43560
     # ratio of bathrooms to bedrooms
     df['bath_bed_ratio'] = df.bathroomcnt/df.bedroomcnt
+    # new column with absolute value of logerror
+    df['abs_logerror'] = df['logerror'].abs()
+    
+    return df
+
+def create_bins(df):
+    '''
+    This function takes in specific variables in the zillow dataframe and bins them so they will be more useful in exploration, statistical testing, and modeling.
+    '''
+    
+    df['bath_bins'] = pd.cut(df['bathroomcnt'], [0, 1, 1.5, 2, 3, 4, 5, 13])
+    df['bed_bins'] = pd.cut(df['bedroomcnt'], [0,1,2,3,4,6,8,10])
+    df['bb_bins'] = pd.cut(df['calculatedbathnbr'], [0,1,2,3,4,6,10,13])
+    df['fb_bins'] = pd.cut(df['fullbathcnt'], [0,1,2,3,4, 13])
+    df['room_bins'] = pd.cut(df['roomcnt'], [0,1,3,5,7,9,15])
     
     return df
 
@@ -146,10 +161,37 @@ def drop_columns(df):
     and returns a DataFrame after dropping the columns
     '''
     # This list needs to be updated for each DataFrame
-    col_list = ['propertylandusetypeid', 'id', 'finishedsquarefeet12', 'propertycountylandusecode', 'propertyzoningdesc', 'transactiondate', 'heatingorsystemdesc', 'propertylandusedesc', 'heatingorsystemtypeid', 'buildingqualitytypeid', 'unitcnt', 'censustractandblock', 'regionidcity', 'regionidzip']
+    col_list = ['propertylandusetypeid', 'id', 'finishedsquarefeet12', 'propertycountylandusecode', 'propertyzoningdesc', 'transactiondate', 'heatingorsystemdesc', 'propertylandusedesc', 'heatingorsystemtypeid', 'buildingqualitytypeid', 'unitcnt', 'censustractandblock', 'regionidcity', 'regionidzip', 'yearbuilt', 'structuretaxvaluedollarcnt', 'taxvaluedollarcnt', 'assessmentyear',
+ 'landtaxvaluedollarcnt', 'rawcensustractandblock']
     
     df = df.drop(columns=col_list)
     
+    return df
+
+
+def zillow_prep(df):
+    '''
+    This functions combines multiple functions to prepare my zillow data to be split.
+    '''
+    # Runs my new index functions to rest the index to parcel_id
+    df = new_index(df)
+    
+    # This functions drops columns and rows that exceed a specified limit of null values
+    df = handle_missing_values(df)
+    
+    # This function creates dummy columns to give names to the FIPS values
+    df = get_counties(df)
+    
+    # This fuiction is used to create specific features like age, acres, etc. to help with exploration and modeling
+    df = create_features(df)
+    
+    # bin creation
+#     df = create_bins(df)
+    
+    # This function drops unneccessary columns
+    df = drop_columns(df)
+    
+    # returns a cleaned and prepped df ready to be split/imputed
     return df
 
 def train_validate_test(df, target):
@@ -196,41 +238,6 @@ def impute_zillow(df, my_strategy, column_list):
     df[column_list] = imputer.fit_transform(df[column_list]) # fit/transform selected columns
 
     return df
-
-
-
-    
-def prep_zillow_cluster(df):
-    
-    # drop propertylandusetypeid != 261 (single family residential)
-    df = df[df['propertylandusetypeid'] == 261]
-    
-    # Create column with county names
-    df = get_counties(df)
-    
-    # drop duplicate parcelid keeping the latest one by transaction date
-    df = df.sort_values('transactiondate').drop_duplicates('parcelid',keep='last')
-    
-    # Drop outliers 1.5* IQR
-    df = drop_outliers(df, ['calculatedfinishedsquarefeet', 'bedroomcnt', 'bathroomcnt'])
-    
-    # Drop columns and rows with more than 50% null values
-    df = handle_missing_values(df)
-    
-    # feature creation
-    df = create_features(df)
-    
-    # dropping the columns with 17K missing values too much to fill/impute/drop rows
-    df = df.drop(columns=['propertylandusetypeid', 'id', 'heatingorsystemtypeid', 'buildingqualitytypeid', 'propertyzoningdesc', 'unitcnt', 'heatingorsystemdesc'])
-    
-    # Split it
-    train, validate, test, X_train, y_train, X_validate, y_validate, X_test, y_test = train_validate_test(df, 'logerror')
-    
-    X_train = impute_zillow(X_train, 'most_frequent', ['calculatedbathnbr', 'fullbathcnt', 'regionidzip', 'regionidcity', 'yearbuilt', 'censustractandblock'])
-    
-    X_train = impute_zillow(X_train, 'median', ['finishedsquarefeet12', 'lotsizesquarefeet', 'structuretaxvaluedollarcnt', 'taxvaluedollarcnt', 'landtaxvaluedollarcnt', 'taxamount', 'age', 'acres', 'taxrate'])
-    
-    return df, train, validate, test, X_train, y_train, X_validate, y_validate, X_test, y_test
     
     
 def summarize(df):

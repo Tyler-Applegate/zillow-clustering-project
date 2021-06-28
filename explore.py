@@ -5,6 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.stats as stats
 import seaborn as sns
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 
 
@@ -48,3 +50,44 @@ def zillow_dummies(train, validate, test, dummy):
     test = pd.concat([test, dummy_test], axis=1)
     
     return train, validate, test
+
+def plot_vars_target(df, target, variables, figsize = (6,4), hue = None):
+    '''
+    Takes in dataframe, target and varialbe list, and plots against target. 
+    '''
+    for var in variables:
+        plt.figure(figsize = (figsize))
+        sns.regplot(data = df, x = var, y = target, 
+                    line_kws={'color': 'black'})
+        plt.show()
+        
+def create_bins(df):
+    '''
+    This function takes in specific variables in the zillow dataframe and bins them so they will be more useful in exploration, statistical testing, and modeling.
+    '''
+    
+    df['bath_bins'] = pd.cut(df['bathroomcnt'], [0, 1, 1.5, 2, 3, 4, 5, 13])
+    df['bed_bins'] = pd.cut(df['bedroomcnt'], [0,1,2,3,4,6,8,10])
+    df['bb_bins'] = pd.cut(df['calculatedbathnbr'], [0,1,2,3,4,6,10,13])
+    df['fb_bins'] = pd.cut(df['fullbathcnt'], [0,1,2,3,4, 13])
+    df['room_bins'] = pd.cut(df['roomcnt'], [0,1,3,5,7,9,15])
+    
+    return df
+
+def scale_my_data(df, scalertype):
+    '''
+    df = dataframe with columns you need scaled
+    scalertype = something like StandardScaler(), or MinMaxScaler()
+    This function takes a dataframe (an X data), a scaler, and ouputs a new dataframe with those columns scaled. 
+    And a scaler to inverse transforming
+    '''
+    scaler = scalertype.fit(df)
+
+    X_scaled = pd.DataFrame(scaler.transform(df), columns = df.columns).set_index([df.index.values])
+    
+    return X_scaled, scaler
+
+        
+        
+
+        
